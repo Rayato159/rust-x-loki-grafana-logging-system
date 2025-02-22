@@ -5,13 +5,15 @@ use uuid::Uuid;
 
 pub struct WeaponDB;
 
+impl Default for WeaponDB {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl WeaponDB {
     pub fn new() -> Self {
         Self
-    }
-
-    fn default() -> Self {
-        Self::new()
     }
 }
 
