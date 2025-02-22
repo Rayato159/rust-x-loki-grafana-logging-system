@@ -32,12 +32,14 @@ pub async fn add(
             web::HttpResponse::Created().body(msg)
         }
         Err(err) => {
+            let msg = err.to_string();
+
             error!(
-                task = "tracing_setup",
-                result = "success",
-                "tracing successfully set up",
+                task = Routes::Weapon(WeaponRoutes::Add).to_string(),
+                result = ActionResponse::Failed(msg.clone()).to_string(),
+                msg,
             );
-            web::HttpResponse::InternalServerError().body(err.to_string())
+            web::HttpResponse::InternalServerError().body(msg)
         }
     }
 }
