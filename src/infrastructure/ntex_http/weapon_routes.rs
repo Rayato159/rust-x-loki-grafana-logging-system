@@ -29,7 +29,7 @@ pub async fn add(
                 result = ActionResponse::Succeed(weapon_id.to_string()).to_string(),
                 msg,
             );
-            web::HttpResponse::Ok().body(msg)
+            web::HttpResponse::Created().body(msg)
         }
         Err(err) => {
             error!(
