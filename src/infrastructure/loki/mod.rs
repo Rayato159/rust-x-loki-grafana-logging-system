@@ -1,4 +1,13 @@
+use crate::config::model::DotEnvyConfig;
+use anyhow::Result;
+use ntex::rt::JoinHandle;
 use std::fmt;
+use std::process;
+use tracing::level_filters::LevelFilter;
+use tracing_subscriber::fmt::Layer;
+use tracing_subscriber::layer::SubscriberExt;
+use tracing_subscriber::util::SubscriberInitExt;
+use url::Url;
 
 #[derive(Debug, PartialEq)]
 pub enum Routes {
@@ -39,4 +48,22 @@ impl fmt::Display for ActionResponse {
             ActionResponse::Failed(err) => write!(f, "Failed: {}", err),
         }
     }
+}
+
+pub fn loki_tracing_setup(
+    dotenvy_config: &DotEnvyConfig,
+) -> Result<(tracing_loki::BackgroundTaskController, JoinHandle<()>)> {
+    let (layer, controller, task) = tracing_loki::builder()
+        .label("job", &dotenvy_config.loki_job_name)?
+        .label("service_name", &dotenvy_config.loki_service_name)?
+        .extra_field("pid", format!("{}", process::id()))?
+        .build_controller_url(Url::parse(&dotenvy_config.loki_url).unwrap())?;
+
+    tracing_subscriber::registry()
+        .with(LevelFilter::INFO)
+        .with(layer)
+        .with(Layer::new())
+        .init();
+
+    Ok((controller, tokio::spawn(task)))
 }

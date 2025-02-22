@@ -1,17 +1,20 @@
-use std::sync::Arc;
-
+use anyhow::Result;
 use ntex::web::{App, HttpServer};
 use observability_but_rust::{
     application::weapon_use_case::WeaponUseCase,
-    infrastructure::{mock_db::repository::WeaponDB, ntex_http::weapon_routes::weapon_routes},
+    config::load,
+    infrastructure::{
+        loki::loki_tracing_setup, mock_db::repository::WeaponDB,
+        ntex_http::weapon_routes::weapon_routes,
+    },
 };
+use std::sync::Arc;
 use tracing::info;
 
 #[ntex::main]
-async fn main() -> std::io::Result<()> {
-    tracing_subscriber::fmt()
-        .with_max_level(tracing::Level::INFO)
-        .init();
+async fn main() -> Result<()> {
+    let dotenvy_config = load()?;
+    let (controller, task) = loki_tracing_setup(&dotenvy_config)?;
 
     info!(
         task = "tracing_setup",
@@ -32,5 +35,16 @@ async fn main() -> std::io::Result<()> {
     })
     .bind(("0.0.0.0", 8080))?
     .run()
-    .await
+    .await?;
+
+    info!(
+        task = "shutdown",
+        result = "success",
+        "server successfully shut down",
+    );
+
+    controller.shutdown().await;
+    task.await.unwrap();
+
+    Ok(())
 }
