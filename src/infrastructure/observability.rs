@@ -1,6 +1,9 @@
 use crate::config::model::DotEnvyConfig;
 use anyhow::Result;
 use ntex::rt::JoinHandle;
+use opentelemetry::global;
+use opentelemetry_otlp::WithExportConfig;
+use opentelemetry_sdk::{Resource, propagation::TraceContextPropagator, trace::SdkTracerProvider};
 use std::fmt;
 use std::process;
 use tracing::level_filters::LevelFilter;
@@ -55,7 +58,7 @@ pub fn loki_tracing_setup(
 ) -> Result<(tracing_loki::BackgroundTaskController, JoinHandle<()>)> {
     let (layer, controller, task) = tracing_loki::builder()
         .label("job", &dotenvy_config.loki_job_name)?
-        .label("service_name", &dotenvy_config.loki_service_name)?
+        .label("service_name", &dotenvy_config.service_name)?
         .extra_field("pid", format!("{}", process::id()))?
         .build_controller_url(Url::parse(&dotenvy_config.loki_url).unwrap())?;
 
@@ -66,4 +69,25 @@ pub fn loki_tracing_setup(
         .init();
 
     Ok((controller, tokio::spawn(task)))
+}
+
+pub fn init_otel_tracer(dotenvy_config: &DotEnvyConfig) -> Result<SdkTracerProvider> {
+    global::set_text_map_propagator(TraceContextPropagator::new());
+
+    let exporter = opentelemetry_otlp::SpanExporter::builder()
+        .with_tonic()
+        .with_endpoint(&dotenvy_config.otel_collector_url)
+        .build()?;
+
+    let provider = SdkTracerProvider::builder()
+        .with_resource(
+            Resource::builder()
+                .with_service_name(dotenvy_config.service_name.clone())
+                .build(),
+        )
+        .with_simple_exporter(exporter)
+        .build();
+
+    global::set_tracer_provider(provider.clone());
+    Ok(provider)
 }

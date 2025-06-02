@@ -1,7 +1,7 @@
 version: "3.3"
 
 networks:
-  loki:
+  logsystem:
 
 services:
   loki:
@@ -10,13 +10,39 @@ services:
       - "3100:3100"
     command: -config.file=/etc/loki/local-config.yaml
     networks:
-      - loki
+      - logsystem
+
+  tempo:
+    image: grafana/tempo:latest
+    command: ["-config.file=/etc/tempo.yaml"]
+    volumes:
+      - ./tempo/tempo.yaml:/etc/tempo.yaml
+    ports:
+      - "3200:3200" # 👈 Web UI
+      - "4317" # 👈 OTLP gRPC, internal only
+    networks:
+      - logsystem
+
+  otel-collector:
+    image: otel/opentelemetry-collector:latest
+    command: ["--config=/etc/otel-collector.yaml"]
+    volumes:
+      - ./otel/otel-collector.yaml:/etc/otel-collector.yaml
+    ports:
+      - "4317:4317" # 👈 Expose to host (Rust app use this)
+      - "4318:4318" # 👈 For OTLP/HTTP
+    networks:
+      - logsystem
+    depends_on:
+      - tempo
 
   grafana:
     image: grafana/grafana:latest
     ports:
       - "3000:3000"
     networks:
-      - loki
+      - logsystem
     depends_on:
       - loki
+      - tempo
+      - otel-collector

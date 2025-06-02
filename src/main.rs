@@ -4,8 +4,9 @@ use observability_but_rust::{
     application::weapon_use_case::WeaponUseCase,
     config::load,
     infrastructure::{
-        loki::loki_tracing_setup, mock_db::repository::WeaponDB,
+        mock_db::repository::WeaponDB,
         ntex_http::weapon_routes::weapon_routes,
+        observability::{init_otel_tracer, loki_tracing_setup},
     },
 };
 use std::sync::Arc;
@@ -15,6 +16,7 @@ use tracing::info;
 async fn main() -> Result<()> {
     let dotenvy_config = load()?;
     let (controller, task) = loki_tracing_setup(&dotenvy_config)?;
+    let tracer_provider = init_otel_tracer(&dotenvy_config)?;
 
     info!(
         task = "tracing_setup",
@@ -44,6 +46,7 @@ async fn main() -> Result<()> {
     );
 
     controller.shutdown().await;
+    tracer_provider.shutdown()?;
     task.await.unwrap();
 
     Ok(())
