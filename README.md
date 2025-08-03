@@ -52,13 +52,13 @@ docker-compose up -d
 - **Loki:** Runs on [http://loki:3100](http://loki:3100)
 - **Tempo:** Runs on [http://tempo:3200](http://tempo:3200)
 
-### 3️⃣ Run The Rust API Like a Pro
+### 3. Run The Rust API Like a Pro
 
 ```sh
 cargo run
 ```
 
-### 4️⃣ Test The Logs
+### 4️. Test The Logs
 
 ```sh
 curl --location 'http://localhost:8080/weapons' \
